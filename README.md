@@ -67,11 +67,15 @@ heavily.
 
 ## Known limitations
 
-- **DNR extensions must load from a writable directory.** Chromium writes
-  indexed rulesets into `_metadata/` next to the unpacked extension. Loading an
-  MV3 blocker from a read-only path (`/data/local/tmp`, say) fails with a
-  misleading `Internal error while parsing rules`.
-- The `release` build variant is newer than the `test` one and less exercised.
+- **Unpacked DNR extensions need a writable directory.** Chromium persists
+  static indexed rulesets in `_metadata/` next to an unpacked extension; loading
+  directly from a shell-owned path such as `/data/local/tmp` fails. The **adb test
+  harness** now detects static DNR rulesets and stages such extensions in
+  app-owned storage automatically. This does *not* change the browser's normal
+  "Load unpacked" picker; choosing a read-only directory there remains unsupported.
+- Both `test` and `release` builds passed emulator checks on 2026-08-20.
+  `release` is non-debuggable, so the command-line extension injection harness
+  cannot exercise it; the documented extension matrix was run with `test`.
 - The store still shows Google's own "Switch to Chrome" promo banners. They do
   not block installation.
 - Kiwi-era conveniences dropped with the 132 layer (custom install dialog,

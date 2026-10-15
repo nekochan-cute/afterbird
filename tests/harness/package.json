@@ -5,7 +5,8 @@
   "description": "Afterbird desktop-parity test harness (Playwright Android + adb)",
   "type": "module",
   "scripts": {
-    "probe": "node probe-android.mjs"
+    "probe": "node probe-android.mjs",
+    "test": "node --test lib/*.test.mjs"
   },
   "devDependencies": {
     "playwright": "^1.49.0"

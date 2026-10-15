@@ -21,6 +21,7 @@
 
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { prepareExtensionPath } from './stage-extension.mjs';
 const pexec = promisify(execFile);
 
 const PKG = process.env.AB_PKG || 'com.danosito.afterbird';
@@ -65,7 +66,14 @@ export async function dumpLogcat() { return adb(['logcat', '-d'], { timeout: 200
 // swiftshader_indirect emulator the native path is stable and forcing in-process
 // SwiftShader is itself a source of crashes.
 export async function writeCommandLine(extPaths = []) {
-  const load = extPaths.length ? ` --load-extension=${extPaths.join(',')}` : '';
+  // Stop the browser before replacing a previously staged DNR ruleset.
+  // A live extension might still be reading its indexed files.
+  if (extPaths.length) await forceStop();
+  const stagedPaths = [];
+  for (const extensionPath of extPaths) {
+    stagedPaths.push(await prepareExtensionPath(extensionPath, { packageName: PKG, shell }));
+  }
+  const load = stagedPaths.length ? ` --load-extension=${stagedPaths.join(',')}` : '';
   const line = `_ --disable-fre --no-default-browser-check${load}`;
   await shell(`printf '%s' ${JSON.stringify(line)} > ${CMDLINE}`);
 }
