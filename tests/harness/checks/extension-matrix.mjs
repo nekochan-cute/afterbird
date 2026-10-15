@@ -20,6 +20,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { chromium } from 'playwright';
+import { prepareExtensionPath } from '../lib/stage-extension.mjs';
 
 const pexec = promisify(execFile);
 const PKG = process.env.AB_PKG || 'com.danosito.afterbird';
@@ -36,7 +37,7 @@ const EXTENSIONS = [
   { id: 'stylus-mv3', name: 'Stylus (MV3)', mv: 3, path: '/data/local/tmp/ext/stylus-mv3' },
   { id: 'violentmonkey-mv3', name: 'Violentmonkey (MV3)', mv: 3, path: '/data/local/tmp/ext/violentmonkey-mv3' },
   { id: 'bitwarden', name: 'Bitwarden', mv: 3, path: '/data/local/tmp/ext/bitwarden' },
-  { id: 'ubolite', name: 'uBO Lite', mv: 3, path: '/data/local/tmp/ext/ubolite', needsWritableDir: true },
+  { id: 'ubolite', name: 'uBO Lite', mv: 3, path: '/data/local/tmp/ext/ubolite' },
 ];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -74,21 +75,13 @@ async function attach() {
   throw new Error('CDP did not come up');
 }
 
-// Chromium writes a DNR extension's indexed rulesets into `_metadata` next to
-// the unpacked extension, and it cannot write to /data/local/tmp. Copy such
-// extensions into the app's own data directory first, or every MV3 blocker
-// fails with a misleading "Internal error while parsing rules".
-async function stageWritable(ext) {
-  if (!ext.needsWritableDir) return ext.path;
-  const dest = `/data/data/${PKG}/${ext.id}`;
-  await shell(`run-as ${PKG} sh -c 'rm -rf ${dest}; cp -r ${ext.path} ${dest}'`);
-  return dest;
-}
-
 async function runOne(ext) {
   await shell(`am force-stop ${PKG}`);
   await shell(`pm clear ${PKG}`).catch(() => {});
-  const loadPath = await stageWritable(ext);
+  const loadPath = await prepareExtensionPath(ext.path, {
+    packageName: PKG,
+    shell: async (command) => (await shell(command)).stdout,
+  });
   await shell(`printf '%s' '_ --disable-fre --no-default-browser-check --load-extension=${loadPath}' > ${CMDLINE}`);
   await adb(['logcat', '-c']).catch(() => {});
   await shell(`am start -a android.intent.action.VIEW -d about:blank ${PKG}`);

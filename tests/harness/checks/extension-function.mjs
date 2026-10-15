@@ -10,6 +10,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { chromium } from 'playwright';
+import { prepareExtensionPath } from '../lib/stage-extension.mjs';
 
 const pexec = promisify(execFile);
 const PKG = process.env.AB_PKG || 'com.danosito.afterbird';
@@ -155,7 +156,11 @@ for (const subject of subjects) {
   try {
     await shell(`am force-stop ${PKG}`);
     await shell(`pm clear ${PKG}`).catch(() => {});
-    await shell(`printf '%s' '_ --disable-fre --no-default-browser-check --load-extension=${subject.path}' > ${CMDLINE}`);
+    const loadPath = await prepareExtensionPath(subject.path, {
+      packageName: PKG,
+      shell: async (command) => (await shell(command)).stdout,
+    });
+    await shell(`printf '%s' '_ --disable-fre --no-default-browser-check --load-extension=${loadPath}' > ${CMDLINE}`);
     await shell(`am start -a android.intent.action.VIEW -d about:blank ${PKG}`);
     await sleep(subject.settleMs);
     await attach();

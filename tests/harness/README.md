@@ -79,6 +79,26 @@ extension because it uses an unsupported manifest version`); the
   (A pinned Chrome ≤137 could serve as a live MV2 reference but we don't maintain
   an EOL browser.)
 
+## Unpacked MV3 DNR extensions in adb tests
+
+Chromium indexes static declarativeNetRequest rules into `_metadata/` next to
+an unpacked extension. `/data/local/tmp` is readable by the app but not writable;
+loading an unpacked DNR extension directly from there fails even when its JSON
+rules are valid. The adb harness now inspects each extension's `manifest.json`.
+If `declarative_net_request.rule_resources` is nonempty, it copies the
+extension into `/data/data/<package>/files/afterbird-unpacked/` using
+`run-as` and passes that app-owned path to `--load-extension`.
+
+This works only for **debuggable `test` APKs**. Run the staging after `pm clear`,
+which removes all app data. A failed `run-as` or unreadable manifest aborts the
+check with an explicit error rather than recording a false extension failure.
+It does not change the browser's interactive Load Unpacked behavior or the
+normal Web Store install path.
+
+Run the staging unit tests without Android or Playwright:
+
+    npm test
+
 ## Layout
 
 - `lib/target.mjs` — `openDesktop()` / `openAndroid()` targets.
