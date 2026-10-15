@@ -236,6 +236,15 @@ resolve_component() {
   printf '%s/%s\n' "${APP_PACKAGE}" "org.chromium.chrome.browser.ChromeTabbedActivity"
 }
 
+diagnose_startup_failure() {
+  # Preserve diagnostics when the startup smoke check terminates the run early.
+  log "Collecting startup failure diagnostics"
+  adb_cmd logcat -d -v time -t 500 > "${ARTIFACT_DIR}/startup_logcat.txt" 2>&1 || true
+  adb_cmd shell dumpsys activity exit-info "${APP_PACKAGE}" > "${ARTIFACT_DIR}/startup_exit_info.txt" 2>&1 || true
+  log "Startup diagnostics: ${ARTIFACT_DIR}/startup_logcat.txt"
+  log "Process exit history: ${ARTIFACT_DIR}/startup_exit_info.txt"
+}
+
 run_smoke_startup_check() {
   local component="$1"
   log "Running startup smoke check against ${component}"
@@ -249,10 +258,12 @@ run_smoke_startup_check() {
   local pid
   pid="$(adb_cmd shell pidof "${APP_PACKAGE}" 2>/dev/null | tr -d '\r' || true)"
   if [[ -z "${pid}" ]]; then
+    diagnose_startup_failure
     die "Smoke check failed: package ${APP_PACKAGE} did not stay running"
   fi
 
   if ! printf '%s\n' "${output}" | grep -qi 'status: ok'; then
+    diagnose_startup_failure
     die "Smoke check failed: launch status is not ok"
   fi
 }
